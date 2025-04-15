@@ -9,7 +9,6 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +33,7 @@ import xiaozhi.modules.device.entity.DeviceEntity;
 import xiaozhi.modules.device.service.DeviceService;
 import xiaozhi.modules.device.vo.UserShowDeviceListVO;
 import xiaozhi.modules.security.user.SecurityUser;
+import xiaozhi.modules.sys.service.SysParamsService;
 import xiaozhi.modules.sys.service.SysUserUtilService;
 
 @Service
@@ -49,11 +49,11 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
 
     // 添加构造函数来初始化 deviceMapper
     public DeviceServiceImpl(DeviceDao deviceDao, SysUserUtilService sysUserUtilService,
-            @Value("${app.fronted-url:http://localhost:8001}") String frontedUrl,
+            SysParamsService sysParamsService,
             RedisTemplate<String, Object> redisTemplate) {
         this.deviceDao = deviceDao;
         this.sysUserUtilService = sysUserUtilService;
-        this.frontedUrl = frontedUrl;
+        this.frontedUrl = sysParamsService.getValue(Constant.SERVER_FRONTED_URL, true);
         this.redisTemplate = redisTemplate;
     }
 
@@ -221,7 +221,7 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         params.put(Constant.PAGE, dto.getPage());
         params.put(Constant.LIMIT, dto.getLimit());
         IPage<DeviceEntity> page = baseDao.selectPage(
-                getPage(params, "sort", true),
+                getPage(params, "mac_address", true),
                 // 定义查询条件
                 new QueryWrapper<DeviceEntity>()
                         // 必须设备关键词查找
@@ -238,6 +238,16 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         }).toList();
         // 计算页数
         return new PageData<>(list, page.getTotal());
+    }
+
+    @Override
+    public DeviceEntity getDeviceByMacAddress(String macAddress) {
+        if (StringUtils.isBlank(macAddress)) {
+            return null;
+        }
+        QueryWrapper<DeviceEntity> wrapper = new QueryWrapper<>();
+        wrapper.eq("mac_address", macAddress);
+        return baseDao.selectOne(wrapper);
     }
 
     private DeviceReportRespDTO.ServerTime buildServerTime() {

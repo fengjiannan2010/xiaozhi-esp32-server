@@ -5,7 +5,7 @@
     <div class="operation-bar">
       <h2 class="page-title">用户管理</h2>
       <div class="right-operations">
-        <el-input placeholder="请输入手机号码查询" v-model="searchPhone" class="search-input"
+        <el-input placeholder="请输入手机号码查询" v-model="searchPhone" class="search-input" clearable
           @keyup.enter.native="handleSearch" />
         <el-button class="btn-search" @click="handleSearch">搜索</el-button>
       </div>
@@ -16,7 +16,7 @@
         <div class="content-area">
           <el-card class="user-card" shadow="never">
             <el-table ref="userTable" :data="userList" class="transparent-table"
-              :header-cell-class-name="headerCellClassName">
+              :header-cell-class-name="headerCellClassName" :max-height="tableMaxHeight">
               <el-table-column label="选择" type="selection" align="center" width="120"></el-table-column>
               <el-table-column label="用户Id" prop="userid" align="center"></el-table-column>
               <el-table-column label="手机号码" prop="mobile" align="center"></el-table-column>
@@ -41,13 +41,25 @@
 
             <div class="table_bottom">
               <div class="ctrl_btn">
-                <el-button size="mini" type="primary" class="select-all-btn" @click="handleSelectAll">全选</el-button>
+                <el-button size="mini" type="primary" class="select-all-btn" @click="handleSelectAll">
+                  {{ isAllSelected ? '取消全选' : '全选' }}
+                </el-button>
                 <el-button size="mini" type="success" icon="el-icon-circle-check" @click="batchEnable">启用</el-button>
                 <el-button size="mini" type="warning" @click="batchDisable"><i
                     class="el-icon-remove-outline rotated-icon"></i>禁用</el-button>
                 <el-button size="mini" type="danger" icon="el-icon-delete" @click="batchDelete">删除</el-button>
               </div>
               <div class="custom-pagination">
+
+                <el-select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+                  <el-option
+                    v-for="item in pageSizeOptions"
+                    :key="item"
+                    :label="`${item}条/页`"
+                    :value="item">
+                  </el-option>
+                </el-select>
+
                 <button class="pagination-btn" :disabled="currentPage === 1" @click="goFirst">
                   首页
                 </button>
@@ -68,7 +80,6 @@
       </div>
     </div>
 
-    <div class="copyright">©2025 xiaozhi-esp32-server</div>
     <view-password-dialog :visible.sync="showViewPassword" :password="currentPassword" />
   </div>
 </template>
@@ -86,9 +97,12 @@ export default {
       currentPassword: "",
       searchPhone: "",
       userList: [],
+      pageSizeOptions: [5, 10, 20, 50, 100],
       currentPage: 1,
       pageSize: 5,
       total: 0,
+      tableMaxHeight: 410,
+      isAllSelected: false
     };
   },
   created() {
@@ -115,6 +129,12 @@ export default {
     },
   },
   methods: {
+     handlePageSizeChange(val) {
+      this.pageSize = val;
+      this.currentPage = 1;
+      this.fetchUsers();
+    },
+
     fetchUsers() {
       Api.admin.getUserList(
         {
@@ -135,7 +155,12 @@ export default {
       this.fetchUsers();
     },
     handleSelectAll() {
-      this.$refs.userTable.toggleAllSelection();
+      if (this.isAllSelected) {
+        this.$refs.userTable.clearSelection();
+      } else {
+        this.$refs.userTable.toggleAllSelection();
+      }
+      this.isAllSelected = !this.isAllSelected;
     },
     batchDelete() {
       const selectedUsers = this.$refs.userTable.selection;
@@ -341,10 +366,13 @@ export default {
 .main-wrapper {
   margin: 5px 22px;
   border-radius: 15px;
-  min-height: 600px;
+  min-height: calc(100vh - 350px);
+  height: auto;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   position: relative;
   background: rgba(237, 242, 255, 0.5);
+  display: flex;
+  flex-direction: column;
 }
 
 .operation-bar {
@@ -457,28 +485,19 @@ export default {
   color: black;
 }
 
-.copyright {
-  text-align: center;
-  color: #979db1;
-  font-size: 12px;
-  font-weight: 400;
-  margin-top: auto;
-  padding: 30px 0 20px;
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-}
-
 .custom-pagination {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 15px;
 
+  .el-select {
+    margin-right: 8px;
+  }
+
   .pagination-btn:first-child,
   .pagination-btn:nth-child(2),
+  .pagination-btn:nth-child(3),
   .pagination-btn:nth-last-child(2) {
     min-width: 60px;
     height: 32px;
@@ -501,7 +520,7 @@ export default {
     }
   }
 
-  .pagination-btn:not(:first-child):not(:nth-child(2)):not(:nth-last-child(2)) {
+  .pagination-btn:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-last-child(2)) {
     min-width: 28px;
     height: 32px;
     padding: 0;
@@ -557,6 +576,14 @@ export default {
   }
 }
 
+:deep(.el-table .el-button--text) {
+  color: #7079aa !important;
+}
+
+:deep(.el-table .el-button--text:hover) {
+  color: #5a64b5 !important;
+}
+
 :deep(.custom-selection-header) {
   .el-checkbox {
     display: none !important;
@@ -606,4 +633,24 @@ export default {
     }
   }
 }
+
+.page-size-select {
+  width: 100px;
+  margin-right: 8px;
+
+  :deep(.el-input__inner) {
+    height: 32px;
+    line-height: 32px;
+    border-radius: 4px;
+    border: 1px solid #e4e7ed;
+    background: #dee7ff;
+    color: #606266;
+    font-size: 14px;
+  }
+
+  :deep(.el-input__suffix) {
+    line-height: 32px;
+  }
+}
+
 </style>
